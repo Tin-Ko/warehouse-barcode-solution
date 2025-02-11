@@ -12,6 +12,8 @@ interface ItemProps {
   width: number;
   height: number;
   onRemove: (id: string) => void;
+  // Optional: if this item is coming from Excel with multiple values
+  values?: string[];
 }
 
 const DraggableResizableItem: React.FC<ItemProps> = ({
@@ -64,7 +66,8 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
   return (
     <div
       ref={itemRef}
-      className="absolute text-gray-900 cursor-move overflow-hidden"
+      data-item-id={id}
+      className="canvas-item absolute text-gray-900 cursor-move overflow-hidden"
       style={{
         width: size.width,
         height: size.height,
@@ -78,7 +81,7 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
       >
         ×
       </button>
-      <div className="w-full h-full flex items-center justify-center p-2">
+      <div className="w-full h-full flex items-center justify-center p-2 item-value">
         {type === "barcode" && (
           <Barcode value={content} width={size.width} height={size.height} />
         )}

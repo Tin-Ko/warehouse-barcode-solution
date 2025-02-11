@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "autoprefixer": "^10.4.20",
+    "html2canvas": "^1.4.1",
     "interactjs": "^1.10.27",
     "jsbarcode": "^3.11.6",
+    "jspdf": "^2.5.2",
     "next": "15.1.6",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",

@@ -6,11 +6,10 @@ interface ImageUploaderProps {
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesUploaded }) => {
-  const [fileNames, setFileNames] = useState<Array<string>>([]); // Explicit typing
+  const [fileNames, setFileNames] = useState<Array<string>>([]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      console.log("Accepted files:", acceptedFiles);
       const imageUrls = acceptedFiles.map((file) => URL.createObjectURL(file));
       setFileNames(acceptedFiles.map((file) => file.name));
       onImagesUploaded(imageUrls);
@@ -26,21 +25,21 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesUploaded }) => {
   return (
     <div
       {...getRootProps()}
-      className="w-full max-w-4xl p-6 border-2 border-dashed border-gray-400 rounded-lg text-center bg-gray-900 cursor-pointer hover:bg-gray-800 transition mb-6"
+      className="w-96 h-32 mx-auto p-6 border-2 border-dashed border-gray-400 rounded-lg 
+                text-center bg-gray-900 cursor-pointer hover:bg-gray-800 transition mb-6
+                flex items-center justify-center"
     >
       <input {...getInputProps()} />
-      <p className="text-lightText">
-        Drag & drop images here, or click to select images
-      </p>
-      {Array.isArray(fileNames) && fileNames.length > 0 && (
-        <div className="mt-2">
-          {fileNames.map((name, index) => (
-            <p key={index} className="text-primary">
-              {name}
-            </p>
-          ))}
-        </div>
-      )}
+      <div>
+        <p className="text-lightText">
+          Drag & drop images here, or click to select images
+        </p>
+        {fileNames.length > 0 && (
+          <p className="text-primary font-medium mt-2">
+            {fileNames.length} image{fileNames.length !== 1 ? "s" : ""} selected
+          </p>
+        )}
+      </div>
     </div>
   );
 };

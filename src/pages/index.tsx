@@ -1,157 +1,224 @@
-import React, { useState, useEffect } from "react";
-import ObjectList, { CanvasObject } from "@/components/ObjectList";
-import ResizableCanvas, { CanvasItem } from "@/components/ResizableCanvas";
-import FileUploader from "@/components/FileUploader";
-import ImageUploader from "@/components/ImageUploader";
-import { parseAppSegmentConfig } from "next/dist/build/segment-config/app/app-segment-config";
+import React, { useState, useRef } from "react";
+import ObjectList, { CanvasObject } from "../components/ObjectList";
+import ResizableCanvas from "../components/ResizableCanvas";
+import FileUploader from "../components/FileUploader";
+import ImageUploader from "../components/ImageUploader";
+import { generatePDF } from "@/components/GeneratePDF";
+import html2canvas from "html2canvas";
+import { CanvasItem } from "@/types/ResizableCanvasTypes";
 
 export default function Home() {
-  const [objectList, setObjectList] = useState<CanvasObject[]>([]);
-  const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
-  const [excelLabelCount, setExcelLabelCount] = useState<number>(0);
+  // State for custom objects (from ObjectList)
+  const [objects, setObjects] = useState<CanvasObject[]>([]);
+  // State for processed Excel data (each column with an array of values)
+  const [excelData, setExcelData] = useState<any[]>([]);
+  // State for image URLs from the ImageUploader
+  const [images, setImages] = useState<string[]>([]);
+  // State for preview modal
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // TODO:
-  // 1. Fix Excel parsing
-  // 2. Make canvas resizable 
-  // 3. Fix dynamic rendering
-  // 4. Test print functinality
-  // 5. Fix text rendering resizing
-  // 6. Fix table section, seperate boxes from object list, and limit it size for uniform sizing
-  // 7. Center and resize image and excel drop boxes
-  // 8. Make the delete button more faint
-  // 9. Remove "Remove" column title
+  // Create a dedicated ref for the canvas preview container
+  const canvasPreviewRef = useRef<HTMLDivElement>(null);
 
-  
-  // When the object list changes, update the canvas items based on each object's selected options.
-  useEffect(() => {
-    const newItems: CanvasItem[] = [];
-    objectList.forEach((obj) => {
-      // For each option checked, add a corresponding canvas item with default position/size.
+  // Generate canvas items based on objects and images.
+  // For objects with Excel data, use the first value for preview.
+  const generateCanvasItems = (): CanvasItem[] => {
+    const items: CanvasItem[] = [];
+    objects.forEach((obj, index) => {
+      const baseX = 50 + index * 20;
+      const baseY = 50 + index * 20;
+      const content =
+        obj.values && obj.values.length > 0 ? obj.values[0] : obj.value;
       if (obj.options.qr) {
-        newItems.push({
-          id: `${obj.id}-qr`,
+        items.push({
+          id: obj.id + "-qr",
           type: "qrcode",
-          content: obj.value,
-          x: 50,
-          y: 50,
+          content,
+          x: baseX,
+          y: baseY,
           width: 100,
           height: 100,
+          values: obj.values,
         });
       }
       if (obj.options.barcode) {
-        newItems.push({
-          id: `${obj.id}-barcode`,
+        items.push({
+          id: obj.id + "-barcode",
           type: "barcode",
-          content: obj.value,
-          x: 100,
-          y: 100,
+          content,
+          x: baseX + 120,
+          y: baseY,
           width: 150,
           height: 60,
+          values: obj.values,
         });
       }
       if (obj.options.text) {
-        newItems.push({
-          id: `${obj.id}-text`,
+        items.push({
+          id: obj.id + "-text",
           type: "text",
-          content: obj.value,
-          x: 150,
-          y: 150,
+          content,
+          x: baseX,
+          y: baseY + 120,
           width: 200,
           height: 50,
+          values: obj.values,
         });
       }
     });
-    // Keep existing image items (whose id starts with "img-")
-    const imageItems = canvasItems.filter((item) => item.type === "image");
-    setCanvasItems([...newItems, ...imageItems]);
-  }, [objectList]);
-
-  // Handler for Excel file uploader – processes rows into Excel variable objects.
-  const handleExcelData = (
-    data: { id: string; type: "barcode" | "qrcode" | "text"; content: string }[]
-  ) => {
-    const excelObjects = data.map((item) => ({
-      id: `excel-${item.id}`,
-      value: item.content,
-      custom: false,
-      options: {
-        qr: item.type === "qrcode",
-        barcode: item.type === "barcode",
-        text: item.type === "text",
-      },
-    }));
-    setObjectList((prev) => [...prev, ...excelObjects]);
-    // Set the label count based on the number of rows in the Excel file.
-    setExcelLabelCount(data.length);
+    images.forEach((img, idx) => {
+      items.push({
+        id: "img-" + idx,
+        type: "image",
+        content: img,
+        x: 300 + idx * 10,
+        y: 300 + idx * 10,
+        width: 200,
+        height: 200,
+      });
+    });
+    return items;
   };
 
-  // Handler for images.
-  const handleImages = (images: string[]) => {
-    const imageItems: CanvasItem[] = images.map((img, index) => ({
-      id: `img-${index}-${Date.now()}`,
-      type: "image",
-      content: img,
-      x: 50,
-      y: 50,
-      width: 150,
-      height: 150,
-    }));
-    setCanvasItems((prev) => [...prev, ...imageItems]);
+  const canvasItems = generateCanvasItems();
+
+  // Remove an item—if it's an image remove it from images,
+  // otherwise remove the corresponding object (all its representations).
+  const removeItem = (id: string) => {
+    if (id.startsWith("img-")) {
+      const idx = parseInt(id.split("-")[1], 10);
+      setImages((prev) => prev.filter((_, index) => index !== idx));
+    } else {
+      const objectId = id.split("-")[0];
+      setObjects((prev) => prev.filter((obj) => obj.id !== objectId));
+    }
   };
 
-  // Remove a canvas item.
-  const removeCanvasItem = (id: string) => {
-    setCanvasItems((prev) => prev.filter((item) => item.id !== id));
-    // Optionally, update objectList if removal should affect checkbox state.
+  // Compute the label count from the Excel data.
+  // (For each imported Excel column, the count is the maximum number of rows.)
+  const labelCount =
+    excelData.length > 0
+      ? Math.max(...excelData.map((col) => col.values.length))
+      : 1;
+
+  // Function to generate a preview image from the canvas preview container.
+  const generatePreview = async () => {
+    if (canvasPreviewRef.current) {
+      const canvas = await html2canvas(canvasPreviewRef.current, {
+        useCORS: true,
+        backgroundColor: null,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      setPreviewImage(imgData);
+    }
   };
 
-  // Print handler – here we simply trigger window.print()
-  const handlePrint = () => {
-    window.print();
+  // Handle print by using the canvas preview container.
+  const handlePrint = async () => {
+    if (canvasPreviewRef.current) {
+      const rect = canvasPreviewRef.current.getBoundingClientRect();
+      const canvasSize = { width: rect.width, height: rect.height };
+      await generatePDF({
+        canvasRef: canvasPreviewRef,
+        items: canvasItems,
+        canvasSize,
+      });
+    }
   };
 
   return (
     <div className="min-h-screen bg-darkBg text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">📦 Barcode Generator</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">
+        📦 Barcode Generator
+      </h1>
 
-      {/* Main container */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Flex container left side */}
-        <div>
-          {/* Object List */}
-          <ObjectList objects={objectList} setObjects={setObjectList} />
+      {/* Object List for custom objects */}
+      <ObjectList objects={objects} setObjects={setObjects} />
 
-          {/* Image Uploader */}
-          <ImageUploader onImagesUploaded={handleImages} />
+      {/* Excel File Uploader */}
+      <FileUploader
+        onDataProcessed={(data) => {
+          console.log("Processed Excel Data:", data);
+          // Map each processed column to a CanvasObject
+          const excelObjects: CanvasObject[] = data.map((col) => ({
+            id: `excel-${col.columnName}`,
+            value: col.columnName, // You could use the header or any identifier here
+            custom: false, // This marks it as an Excel-based object
+            options: {
+              // For example, default these options to true or false
+              // Or use col.type to decide which one to default as checked:
+              qr: col.type === "qrcode",
+              barcode: col.type === "barcode",
+              text: col.type === "text",
+            },
+            values: col.values, // Excel values are kept for further processing/printing
+          }));
 
-          {/* Excel File Uploader */}
-          <FileUploader onDataProcessed={handleExcelData} />
-        </div>
+          // Update the object list by merging in the Excel objects
+          setObjects((prev) => [...prev, ...excelObjects]);
+        }}
+      />
 
-        <div className="flex flex-col mr-4">
-          {/* Canvas */}
-          <ResizableCanvas items={canvasItems} removeItem={removeCanvasItem} />
+      {/* Image Uploader */}
+      <ImageUploader onImagesUploaded={(imgs) => setImages(imgs)} />
 
-          {/* Label Count and Print Button */}
-          <div className="mt-4 flex items-center justify-between max-w-4xl mx-auto">
-            <div>
-              <p className="text-lg">
-                {excelLabelCount > 0
-                  ? `Printing ${excelLabelCount} label${
-                      excelLabelCount > 1 ? "s" : ""
-                    }`
-                  : "Printing 1 label"}
-              </p>
+      {/* Canvas Container with separate preview ref (excludes the size selector) */}
+      <div className="mt-6">
+        <ResizableCanvas
+          items={canvasItems}
+          removeItem={removeItem}
+          previewRef={canvasPreviewRef}
+        />
+      </div>
+
+      {/* Label Count and Preview/Print Buttons */}
+      <div className="mt-4 text-center">
+        <p className="mb-2">Labels to print: {labelCount}</p>
+        <button
+          onClick={async () => {
+            await generatePreview();
+            setShowPreview(true);
+          }}
+          className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition mr-2"
+        >
+          Preview Labels
+        </button>
+        <button
+          onClick={handlePrint}
+          className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition"
+        >
+          Print Labels
+        </button>
+      </div>
+
+      {/* Preview Modal */}
+      {showPreview && previewImage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg">
+            <h2 className="text-xl font-bold mb-4">Preview</h2>
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="max-w-full max-h-[80vh]"
+            />
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setShowPreview(false)}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition mr-2"
+              >
+                Close
+              </button>
+              <button
+                onClick={handlePrint}
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition"
+              >
+                Confirm & Print
+              </button>
             </div>
-            <button
-              onClick={handlePrint}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition"
-            >
-              Print Labels
-            </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
