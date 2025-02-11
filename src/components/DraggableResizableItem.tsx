@@ -5,12 +5,13 @@ import QRCodeComponent from "./QRCode";
 
 interface ItemProps {
   id: string;
-  type: "barcode" | "qrcode" | "text";
+  type: "barcode" | "qrcode" | "text" | "image";
   content: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  onRemove: (id: string) => void;
 }
 
 const DraggableResizableItem: React.FC<ItemProps> = ({
@@ -21,6 +22,7 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
   y,
   width,
   height,
+  onRemove,
 }) => {
   const itemRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width, height });
@@ -50,7 +52,7 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
           move(event) {
-            let { width, height } = event.rect;
+            const { width, height } = event.rect;
             setSize({ width, height });
             event.target.style.width = `${width}px`;
             event.target.style.height = `${height}px`;
@@ -62,25 +64,41 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
   return (
     <div
       ref={itemRef}
-      className="absolute flex items-center justify-center bg-gray-100 p-3 rounded-md shadow-lg text-gray-900 cursor-move"
+      className="absolute bg-gray-100 rounded-md shadow-lg text-gray-900 cursor-move overflow-hidden"
       style={{
         width: size.width,
         height: size.height,
         transform: `translate(${x}px, ${y}px)`,
       }}
     >
-      {type === "barcode" && (
-        <Barcode value={content} width={size.width} height={size.height} />
-      )}
-      {type === "qrcode" && (
-        <QRCodeComponent
-          value={content}
-          size={Math.min(size.width, size.height)}
-        />
-      )}
-      {type === "text" && (
-        <div className="text-lg font-semibold">{content}</div>
-      )}
+      {/* Remove Button */}
+      <button
+        onClick={() => onRemove(id)}
+        className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center z-10"
+      >
+        ×
+      </button>
+      <div className="w-full h-full flex items-center justify-center p-2">
+        {type === "barcode" && (
+          <Barcode value={content} width={size.width} height={size.height} />
+        )}
+        {type === "qrcode" && (
+          <QRCodeComponent
+            value={content}
+            size={Math.min(size.width, size.height)}
+          />
+        )}
+        {type === "text" && (
+          <div className="text-lg font-semibold">{content}</div>
+        )}
+        {type === "image" && (
+          <img
+            src={content}
+            alt="Uploaded"
+            className="object-contain w-full h-full"
+          />
+        )}
+      </div>
     </div>
   );
 };
