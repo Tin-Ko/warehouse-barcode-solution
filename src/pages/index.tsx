@@ -3,12 +3,25 @@ import ObjectList, { CanvasObject } from "@/components/ObjectList";
 import ResizableCanvas, { CanvasItem } from "@/components/ResizableCanvas";
 import FileUploader from "@/components/FileUploader";
 import ImageUploader from "@/components/ImageUploader";
+import { parseAppSegmentConfig } from "next/dist/build/segment-config/app/app-segment-config";
 
 export default function Home() {
   const [objectList, setObjectList] = useState<CanvasObject[]>([]);
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
   const [excelLabelCount, setExcelLabelCount] = useState<number>(0);
 
+  // TODO:
+  // 1. Fix Excel parsing
+  // 2. Make canvas resizable 
+  // 3. Fix dynamic rendering
+  // 4. Test print functinality
+  // 5. Fix text rendering resizing
+  // 6. Fix table section, seperate boxes from object list, and limit it size for uniform sizing
+  // 7. Center and resize image and excel drop boxes
+  // 8. Make the delete button more faint
+  // 9. Remove "Remove" column title
+
+  
   // When the object list changes, update the canvas items based on each object's selected options.
   useEffect(() => {
     const newItems: CanvasItem[] = [];
