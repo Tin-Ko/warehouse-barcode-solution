@@ -97,15 +97,16 @@ export default function Home() {
 
   // Compute the label count from the Excel data.
   // (For each imported Excel column, the count is the maximum number of rows.)
-  const labelCount =
-    excelData.length > 0
-      ? Math.max(...excelData.map((col) => col.values.length))
-      : 1;
+  const labelCount = objects.reduce(
+    (max, obj) => Math.max(max, obj.values ? obj.values.length : 1),
+    1
+  );
 
   // Function to generate a preview image from the canvas preview container.
   const generatePreview = async () => {
     if (canvasPreviewRef.current) {
       const canvas = await html2canvas(canvasPreviewRef.current, {
+        scale: 2,
         useCORS: true,
         backgroundColor: null,
       });

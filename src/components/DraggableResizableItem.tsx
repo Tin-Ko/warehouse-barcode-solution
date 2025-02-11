@@ -30,20 +30,20 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
   const [size, setSize] = useState({ width, height });
 
   useEffect(() => {
+    // Inside your useEffect or component setup:
     if (!itemRef.current) return;
 
     interact(itemRef.current)
       .draggable({
-        inertia: true,
         listeners: {
           move(event) {
-            const target = event.target as HTMLDivElement;
+            const target = event.target;
             const dx = event.dx || 0;
             const dy = event.dy || 0;
-            const newX =
-              (parseFloat(target.getAttribute("data-x") || "0") || 0) + dx;
-            const newY =
-              (parseFloat(target.getAttribute("data-y") || "0") || 0) + dy;
+            const currentX = parseFloat(target.getAttribute("data-x") || "0");
+            const currentY = parseFloat(target.getAttribute("data-y") || "0");
+            const newX = currentX + dx;
+            const newY = currentY + dy;
             target.style.transform = `translate(${newX}px, ${newY}px)`;
             target.setAttribute("data-x", newX.toString());
             target.setAttribute("data-y", newY.toString());
@@ -54,10 +54,31 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
         edges: { left: true, right: true, bottom: true, top: true },
         listeners: {
           move(event) {
+            // Update the element's size based on the resized rectangle.
             const { width, height } = event.rect;
             setSize({ width, height });
             event.target.style.width = `${width}px`;
             event.target.style.height = `${height}px`;
+
+            // Get current translation from data attributes.
+            const currentX = parseFloat(
+              event.target.getAttribute("data-x") || "0"
+            );
+            const currentY = parseFloat(
+              event.target.getAttribute("data-y") || "0"
+            );
+
+            // Adjust position when resizing from the left or top.
+            // event.deltaRect.left/top tells you how much the position changed.
+            const newX = currentX + event.deltaRect.left;
+            const newY = currentY + event.deltaRect.top;
+
+            // Apply the updated translation.
+            event.target.style.transform = `translate(${newX}px, ${newY}px)`;
+
+            // Save the new translation in data attributes.
+            event.target.setAttribute("data-x", newX.toString());
+            event.target.setAttribute("data-y", newY.toString());
           },
         },
       });
@@ -74,14 +95,7 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
         transform: `translate(${x}px, ${y}px)`,
       }}
     >
-      {/* Remove Button */}
-      <button
-        onClick={() => onRemove(id)}
-        className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center z-10"
-      >
-        ×
-      </button>
-      <div className="w-full h-full flex items-center justify-center p-2 item-value">
+      <div className="w-full h-full flex items-center hover:border-2 border-dotted border-red-600 justify-center p-2 item-value">
         {type === "barcode" && (
           <Barcode value={content} width={size.width} height={size.height} />
         )}

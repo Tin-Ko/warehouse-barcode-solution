@@ -9,10 +9,6 @@ interface PdfGeneratorProps {
   onGenerateEnd?: () => void;
 }
 
-// Constants for PDF generation
-const PIXELS_PER_INCH = 96;
-const PDF_DPI = 72;
-
 export const generatePDF = async ({
   canvasRef,
   items,
@@ -25,7 +21,7 @@ export const generatePDF = async ({
   try {
     onGenerateStart?.();
 
-    // Find Excel items (assumed to be items with a "values" property)
+    // Filter items that have associated Excel values
     const excelItems = items.filter(
       (item) => item.values && item.values.length > 0
     );
@@ -34,57 +30,67 @@ export const generatePDF = async ({
         ? Math.max(...excelItems.map((item) => item.values?.length || 0))
         : 1;
 
-    // Convert canvas size from pixels to PDF points (72 DPI)
-    const pdfWidth = (canvasSize.width / PIXELS_PER_INCH) * PDF_DPI;
-    const pdfHeight = (canvasSize.height / PIXELS_PER_INCH) * PDF_DPI;
-
-    // Initialize PDF with the correct page size
+    // Create a PDF with pixel units and set the format to the canvas dimensions
     const pdf = new jsPDF({
-      orientation: pdfWidth > pdfHeight ? "landscape" : "portrait",
-      unit: "pt",
-      format: [pdfWidth, pdfHeight],
+      orientation:
+        canvasSize.width > canvasSize.height ? "landscape" : "portrait",
+      unit: "px",
+      format: [canvasSize.width, canvasSize.height],
     });
 
-    // Generate each page
+    // Loop through each page to render
     for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
       if (pageIndex > 0) {
-        pdf.addPage([pdfWidth, pdfHeight]);
+        pdf.addPage([canvasSize.width, canvasSize.height]);
       }
 
-      // Clone the canvas for this page
+      // Clone the original canvas element
       const tempCanvas = canvasRef.current.cloneNode(true) as HTMLDivElement;
+      // Optionally, force the clone to be visible and positioned at (0,0)
+      tempCanvas.style.position = "absolute";
+      tempCanvas.style.top = "0";
+      tempCanvas.style.left = "0";
+      tempCanvas.style.zIndex = "-1000"; // place it behind other content
+
       document.body.appendChild(tempCanvas);
 
-      // Update Excel items with the correct values for this page
+      // Update Excel item values for this page in the cloned canvas
       const itemElements = tempCanvas.getElementsByClassName("canvas-item");
       Array.from(itemElements).forEach((element) => {
         const itemId = element.getAttribute("data-item-id");
-        // Find the corresponding excel item (if any)
         const excelItem = excelItems.find((item) => item.id === itemId);
         if (excelItem && excelItem.values) {
           const valueElement = element.querySelector(".item-value");
           if (valueElement) {
-            // Update the text content to the value for the current page
             valueElement.textContent = excelItem.values[pageIndex];
           }
         }
       });
 
-      // Render the temporary canvas to an image
-      const canvas = await html2canvas(tempCanvas, {
-        scale: PDF_DPI / PIXELS_PER_INCH,
+      // Force a reflow to ensure the updated content is rendered
+      // This makes sure the browser processes all style changes
+      tempCanvas.offsetHeight;
+
+      // Wait briefly to let the DOM finish updating (adjust delay as needed)
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Capture the temporary canvas as an image using html2canvas with no scaling
+      const canvasImage = await html2canvas(tempCanvas, {
+        scale: 1,
         useCORS: true,
         logging: false,
         backgroundColor: null,
       });
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      const imgData = canvasImage.toDataURL("image/png");
 
-      // Clean up the temporary node
+      // Add the captured image to the PDF using the canvas dimensions in pixels
+      pdf.addImage(imgData, "PNG", 0, 0, canvasSize.width, canvasSize.height);
+
+      // Clean up: remove the temporary canvas from the document
       document.body.removeChild(tempCanvas);
     }
 
-    // Save the PDF
+    // Save the generated PDF
     pdf.save("labels.pdf");
     onGenerateEnd?.();
   } catch (error) {
