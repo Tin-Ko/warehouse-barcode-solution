@@ -21,7 +21,7 @@ export default function ResizableCanvas({
   removeItem,
 }: ResizableCanvasProps) {
   return (
-    <div className="relative w-full max-w-4xl h-[500px] bg-gray-800 border border-gray-600 rounded-lg p-4 mt-6">
+    <div className="relative w-[800px] h-[500px] bg-white border border-gray-600 rounded-lg p-4">
       {items.map((item) => (
         <DraggableResizableItem key={item.id} {...item} onRemove={removeItem} />
       ))}

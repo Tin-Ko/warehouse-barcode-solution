@@ -101,35 +101,43 @@ export default function Home() {
     <div className="min-h-screen bg-darkBg text-white p-6">
       <h1 className="text-3xl font-bold mb-6">📦 Barcode Generator</h1>
 
-      {/* Object List */}
-      <ObjectList objects={objectList} setObjects={setObjectList} />
-
-      {/* Image Uploader */}
-      <ImageUploader onImagesUploaded={handleImages} />
-
-      {/* Excel File Uploader */}
-      <FileUploader onDataProcessed={handleExcelData} />
-
-      {/* Canvas */}
-      <ResizableCanvas items={canvasItems} removeItem={removeCanvasItem} />
-
-      {/* Label Count and Print Button */}
-      <div className="mt-4 flex items-center justify-between max-w-4xl mx-auto">
+      {/* Main container */}
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Flex container left side */}
         <div>
-          <p className="text-lg">
-            {excelLabelCount > 0
-              ? `Printing ${excelLabelCount} label${
-                  excelLabelCount > 1 ? "s" : ""
-                }`
-              : "Printing 1 label"}
-          </p>
+          {/* Object List */}
+          <ObjectList objects={objectList} setObjects={setObjectList} />
+
+          {/* Image Uploader */}
+          <ImageUploader onImagesUploaded={handleImages} />
+
+          {/* Excel File Uploader */}
+          <FileUploader onDataProcessed={handleExcelData} />
         </div>
-        <button
-          onClick={handlePrint}
-          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition"
-        >
-          Print Labels
-        </button>
+
+        <div className="flex flex-col mr-4">
+          {/* Canvas */}
+          <ResizableCanvas items={canvasItems} removeItem={removeCanvasItem} />
+
+          {/* Label Count and Print Button */}
+          <div className="mt-4 flex items-center justify-between max-w-4xl mx-auto">
+            <div>
+              <p className="text-lg">
+                {excelLabelCount > 0
+                  ? `Printing ${excelLabelCount} label${
+                      excelLabelCount > 1 ? "s" : ""
+                    }`
+                  : "Printing 1 label"}
+              </p>
+            </div>
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition"
+            >
+              Print Labels
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

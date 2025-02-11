@@ -64,7 +64,7 @@ const DraggableResizableItem: React.FC<ItemProps> = ({
   return (
     <div
       ref={itemRef}
-      className="absolute bg-gray-100 rounded-md shadow-lg text-gray-900 cursor-move overflow-hidden"
+      className="absolute text-gray-900 cursor-move overflow-hidden"
       style={{
         width: size.width,
         height: size.height,
