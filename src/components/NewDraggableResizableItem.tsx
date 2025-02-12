@@ -2,152 +2,127 @@ import React, { useEffect, useRef, useState } from "react";
 import Barcode from "./Barcode";
 import QRCodeComponent from "./QRCode";
 import Moveable from "react-moveable";
+import "./moveableOverrides.css";
 
 interface ItemProps {
-    id: string;
-    type: "barcode" | "qrcode" | "text" | "image";
-    content: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    onRemove: (id: string) => void;
-    values?: string[];
+  id: string;
+  type: "barcode" | "qrcode" | "text" | "image";
+  content: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  onRemove: (id: string) => void;
+  values?: string[]; // For Excel-based items (multiple values)
+  currentPage?: number; // Which page's value to show (default 0)
 }
-
 
 const NewDraggableResizableItem: React.FC<ItemProps> = ({
-    id,
-    type,
-    content,
-    x,
-    y,
-    width,
-    height,
-    onRemove,
+  id,
+  type,
+  content,
+  x,
+  y,
+  width,
+  height,
+  onRemove,
+  values,
+  currentPage = 0,
 }) => {
-    const itemRef = useRef<HTMLDivElement | null>(null);
-    const [size, setSize] = useState({ width, height });
-    const [item, setItem] = useState<HTMLDivElement | null>(null);
+  const itemRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState({ x, y });
+  const [size, setSize] = useState({ width, height });
+  const [target, setTarget] = useState<HTMLDivElement | null>(null);
+  const [displayContent, setDisplayContent] = useState(content);
 
-    useEffect(() => {
-        if (!itemRef.current) return;
+  // Set the target ref for Moveable once the component mounts.
+  useEffect(() => {
+    if (itemRef.current) {
+      setTarget(itemRef.current);
+    }
+  }, []);
 
-        setItem(itemRef.current);
-        //
-        // interact(itemRef.current)
-        //   .draggable({
-        //     listeners: {
-        //       move(event) {
-        //         const target = event.target;
-        //         const dx = event.dx || 0;
-        //         const dy = event.dy || 0;
-        //         const currentX = parseFloat(target.getAttribute("data-x") || "0");
-        //         const currentY = parseFloat(target.getAttribute("data-y") || "0");
-        //         const newX = currentX + dx;
-        //         const newY = currentY + dy;
-        //         target.style.transform = `translate(${newX}px, ${newY}px)`;
-        //         target.setAttribute("data-x", newX.toString());
-        //         target.setAttribute("data-y", newY.toString());
-        //       },
-        //     },
-        //   })
-        //   .resizable({
-        //     edges: { left: true, right: true, bottom: true, top: true },
-        //     listeners: {
-        //       move(event) {
-        //         // Update the element's size based on the resized rectangle.
-        //         const { width, height } = event.rect;
-        //         setSize({ width, height });
-        //         event.target.style.width = `${width}px`;
-        //         event.target.style.height = `${height}px`;
-        //
-        //         // Get current translation from data attributes.
-        //         const currentX = parseFloat(
-        //           event.target.getAttribute("data-x") || "0"
-        //         );
-        //         const currentY = parseFloat(
-        //           event.target.getAttribute("data-y") || "0"
-        //         );
-        //
-        //         // Adjust position when resizing from the left or top.
-        //         // event.deltaRect.left/top tells you how much the position changed.
-        //         const newX = currentX + event.deltaRect.left;
-        //         const newY = currentY + event.deltaRect.top;
-        //
-        //         // Apply the updated translation.
-        //         event.target.style.transform = `translate(${newX}px, ${newY}px)`;
-        //
-        //         // Save the new translation in data attributes.
-        //         event.target.setAttribute("data-x", newX.toString());
-        //         event.target.setAttribute("data-y", newY.toString());
-        //       },
-        //     },
-        //   });
+  // Update the displayed content if the item has Excel values.
+  useEffect(() => {
+    if (values && values.length > 0) {
+      setDisplayContent(values[currentPage] || "");
+    } else {
+      setDisplayContent(content);
+    }
+  }, [currentPage, values, content]);
 
-    }, []);
   return (
-    <div>
-
-        <div ref={itemRef}>
-            <QRCodeComponent
-            value={content}
-            size={Math.min(size.width, size.height)}
+    <div className="relative">
+      {/* Draggable & Resizable Item */}
+      <div
+        ref={itemRef}
+        data-item-id={id} // This is needed for PDF generation
+        className="canvas-item absolute"
+        style={{
+          width: `${size.width}px`,
+          height: `${size.height}px`,
+          transform: `translate(${position.x}px, ${position.y}px)`,
+        }}
+      >
+        {/* Wrap the content in an element with class "item-value" */}
+        <div className="item-value w-full h-full flex hover:border-2 border-red-500 border-dotted items-center justify-center p-2">
+          {type === "barcode" && (
+            <Barcode
+              value={displayContent}
+              width={size.width}
+              height={size.height}
             />
+          )}
+          {type === "qrcode" && (
+            <QRCodeComponent
+              value={displayContent}
+              size={Math.min(size.width, size.height)}
+            />
+          )}
+          {type === "text" && (
+            <div className="text-lg text-black font-semibold">
+              {displayContent}
+            </div>
+          )}
+          {type === "image" && (
+            <img
+              src={content}
+              alt="Uploaded"
+              className="object-contain w-full h-full"
+            />
+          )}
         </div>
+      </div>
 
-      <Moveable
-        target={item}
-        draggable={true}
-        resizable={true}
-        onDrag={(e) => {
-          e.target.style.transform = e.transform;
-        }}
-        onResize={(e) => {
-          e.target.style.width = `${e.width}px`;
-          e.target.style.height = `${e.height}px`;
-        }}
-      />
+      {/* Moveable Component */}
+      {target && (
+        <Moveable
+          target={target}
+          draggable={true}
+          resizable={true}
+          keepRatio={false}
+          throttleResize={1}
+          edge={true}
+          hideDefaultLines={true} // Hides blue selection box
+          origin={false} // Removes the red origin dot
+          renderDirections={["nw", "ne", "sw", "se"]} // Removes blue corner handles
+          onDrag={(e) => {
+            const newX = position.x + e.delta[0];
+            const newY = position.y + e.delta[1];
+            setPosition({ x: newX, y: newY });
+            e.target.style.transform = `translate(${newX}px, ${newY}px)`;
+          }}
+          onResize={(e) => {
+            const newWidth = e.width;
+            const newHeight = e.height;
+            setSize({ width: newWidth, height: newHeight });
+            e.target.style.width = `${newWidth}px`;
+            e.target.style.height = `${newHeight}px`;
+          }}
+        />
+      )}
     </div>
   );
-
-
-    // return (
-      //   <div
-      //     ref={itemRef}
-      //     data-item-id={id}
-      //     className="canvas-item absolute text-gray-900 cursor-move overflow-hidden"
-      //     style={{
-      //       width: size.width,
-      //       height: size.height,
-      //       transform: `translate(${x}px, ${y}px)`,
-      //     }}
-      //   >
-      //     <div className="w-full h-full flex items-center hover:border-2 border-dotted border-red-600 justify-center p-2 item-value">
-      //       {type === "barcode" && (
-      //         <Barcode value={content} width={size.width} height={size.height} />
-      //       )}
-      //       {type === "qrcode" && (
-      //         <QRCodeComponent
-      //           value={content}
-      //           size={Math.min(size.width, size.height)}
-      //         />
-      //       )}
-      //       {type === "text" && (
-      //         <div className="text-lg font-semibold">{content}</div>
-      //       )}
-      //       {type === "image" && (
-      //         <img
-      //           src={content}
-      //           alt="Uploaded"
-      //           className="object-contain w-full h-full"
-      //         />
-      //       )}
-      //     </div>
-      //   </div>
-      // );
-
-    // )
-}
+};
 
 export default NewDraggableResizableItem;

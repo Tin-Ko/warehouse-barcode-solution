@@ -137,18 +137,18 @@ export default function ResizableCanvas({
       {/* Canvas */}
       <div
         ref={previewRef}
-        className="relative bg-red-100 border border-gray-300 rounded-lg mx-auto"
+        className="relative bg-white border border-gray-300 rounded-lg mx-auto"
         style={{
           width: canvasSize.width,
           height: canvasSize.height,
         }}
       >
         {items.map((item) => (
-            <NewDraggableResizableItem
-                key={item.id}
-                {...item}
-                onRemove={removeItem}
-            />
+          <NewDraggableResizableItem
+            key={item.id}
+            {...item}
+            onRemove={removeItem}
+          />
           // <DraggableResizableItem
           //   key={item.id}
           //   {...item}

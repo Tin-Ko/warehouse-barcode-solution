@@ -124,7 +124,7 @@ export default function Home() {
         canvasRef: canvasPreviewRef,
         items: canvasItems,
         canvasSize,
-        debug: true,
+        debug: false,
       });
     }
   };

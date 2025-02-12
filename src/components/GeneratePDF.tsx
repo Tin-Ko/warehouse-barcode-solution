@@ -12,7 +12,7 @@ export interface CanvasItem {
   y: number;
   width: number;
   height: number;
-  values?: string[];
+  values?: string[]; // For Excel-based items (if applicable)
 }
 
 // Define the parameters for PDF generation.
@@ -38,7 +38,7 @@ export const generatePDF = async ({
   try {
     onGenerateStart?.();
 
-    // Determine the maximum number of pages based on Excel items.
+    // Determine the maximum number of pages from Excel-based items.
     const excelItems = items.filter(
       (item) => item.values && item.values.length > 0
     );
@@ -47,7 +47,7 @@ export const generatePDF = async ({
         ? Math.max(...excelItems.map((item) => item.values!.length))
         : 1;
 
-    // Create a jsPDF instance using the canvas dimensions.
+    // Create a new jsPDF instance using the canvas dimensions.
     const pdf = new jsPDF({
       orientation:
         canvasSize.width > canvasSize.height ? "landscape" : "portrait",
@@ -79,10 +79,9 @@ export const generatePDF = async ({
         tempCanvas.style.zIndex = "-1000";
       }
 
-      // Append the cloned canvas to the document so it can be inspected.
+      // Append the cloned canvas to the document so we can inspect it.
       document.body.appendChild(tempCanvas);
 
-      // Log details about the clone for debugging.
       if (debug) {
         console.log("Debug: Cloned canvas appended to DOM.");
         console.log(
@@ -95,7 +94,7 @@ export const generatePDF = async ({
         );
       }
 
-      // Update Excel-based items in the clone.
+      // Update Excel-based items in the cloned canvas.
       const itemElements = tempCanvas.getElementsByClassName("canvas-item");
       Array.from(itemElements).forEach((element) => {
         const el = element as HTMLElement;
@@ -115,31 +114,31 @@ export const generatePDF = async ({
         }
       });
 
-      // Force a reflow so that style changes are applied.
+      // Force reflow to ensure style updates.
       tempCanvas.offsetHeight;
 
-      // Wait briefly to allow updates to render.
+      // Wait briefly to allow DOM updates to render.
       await new Promise((resolve) => setTimeout(resolve, debug ? 3000 : 100));
 
-      // Capture the clone using html2canvas.
+      // Capture the cloned canvas with html2canvas.
       const capturedCanvas = await html2canvas(tempCanvas, {
-        scale: 2, // Increase scale for higher resolution.
+        scale: 3, // Increase scale for higher resolution.
         useCORS: true,
         backgroundColor: null,
         logging: debug,
       });
       const imgData = capturedCanvas.toDataURL("image/png");
 
-      // Add the captured image to the PDF.
+      // Add the captured image as a page in the PDF.
       pdf.addImage(imgData, "PNG", 0, 0, canvasSize.width, canvasSize.height);
 
-      // Optionally leave the clone on-screen a bit longer in debug mode.
+      // Optionally, wait a bit longer in debug mode before cleanup.
       if (debug) {
         console.log("Debug: Waiting before removing cloned canvas...");
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
 
-      // Remove the temporary clone.
+      // Remove the temporary cloned canvas.
       document.body.removeChild(tempCanvas);
     }
 
