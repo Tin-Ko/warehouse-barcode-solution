@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import DraggableResizableItem from "./DraggableResizableItem";
+import NewDraggableResizableItem from "./NewDraggableResizableItem";
 
 export interface CanvasItem {
   id: string;
@@ -143,11 +144,16 @@ export default function ResizableCanvas({
         }}
       >
         {items.map((item) => (
-          <DraggableResizableItem
-            key={item.id}
-            {...item}
-            onRemove={removeItem}
-          />
+            <NewDraggableResizableItem
+                key={item.id}
+                {...item}
+                onRemove={removeItem}
+            />
+          // <DraggableResizableItem
+          //   key={item.id}
+          //   {...item}
+          //   onRemove={removeItem}
+          // />
         ))}
       </div>
     </div>
