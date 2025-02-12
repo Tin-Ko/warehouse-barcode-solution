@@ -3,3 +3,19 @@
   background-color: transparent !important;
   border: none !important;
 }
+
+.canvas-item {
+  outline: none;
+}
+
+.canvas-item.selected {
+  outline: 3px dotted blue;
+}
+
+.moveable-control-box {
+  display: none;
+}
+
+.selected .moveable-control-box {
+  display: block !important;
+}

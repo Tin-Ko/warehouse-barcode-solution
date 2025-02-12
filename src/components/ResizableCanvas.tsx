@@ -148,12 +148,9 @@ export default function ResizableCanvas({
             key={item.id}
             {...item}
             onRemove={removeItem}
+            canvasWidth={canvasSize.width}
+            canvasHeight={canvasSize.height}
           />
-          // <DraggableResizableItem
-          //   key={item.id}
-          //   {...item}
-          //   onRemove={removeItem}
-          // />
         ))}
       </div>
     </div>

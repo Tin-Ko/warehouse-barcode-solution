@@ -3,7 +3,7 @@ import Barcode from "./Barcode";
 import QRCodeComponent from "./QRCode";
 import Moveable from "react-moveable";
 import "./moveableOverrides.css";
-import jsbarcode from "jsbarcode";
+import Jsbarcode from "jsbarcode";
 import QRCode from "qrcode";
 
 interface ItemProps {
@@ -15,8 +15,10 @@ interface ItemProps {
   width: number;
   height: number;
   onRemove: (id: string) => void;
-  values?: string[]; // For Excel-based items (multiple values)
-  currentPage?: number; // Which page's value to show (default 0)
+  values?: string[];
+  currentPage?: number;
+  canvasWidth: number;
+  canvasHeight: number;
 }
 
 const NewDraggableResizableItem: React.FC<ItemProps> = ({
@@ -30,39 +32,37 @@ const NewDraggableResizableItem: React.FC<ItemProps> = ({
   onRemove,
   values,
   currentPage = 0,
+  canvasWidth,
+  canvasHeight,
 }) => {
   const itemRef = useRef<HTMLDivElement | null>(null);
   const barcodeRef = useRef<HTMLCanvasElement | null>(null);
   const qrRef = useRef<HTMLCanvasElement | null>(null);
   const [position, setPosition] = useState({ x, y });
   const [size, setSize] = useState({ width, height });
-  const [target, setTarget] = useState<HTMLDivElement | null>(null);
   const [displayContent, setDisplayContent] = useState(content);
+  const [isSelected, setIsSelected] = useState(false);
 
-  // Render barcode/qrcode when content or size changes
+  // Barcode & QR Code Rendering
   useEffect(() => {
     if (type === "barcode" && barcodeRef.current) {
-      jsbarcode(barcodeRef.current, displayContent, {
-        width: size.width,
-        height: size.height,
+      Jsbarcode(barcodeRef.current, displayContent, {
         format: "CODE128",
+        lineColor: "#333",
+        width: Math.max(size.width / 200, 1),
+        height: size.height * 0.8,
+        displayValue: true,
+        fontSize: size.height * 0.15,
       });
     }
     if (type === "qrcode" && qrRef.current) {
       QRCode.toCanvas(qrRef.current, displayContent, {
-        width: Math.min(size.width, size.height),
+        width: size.width,
       });
     }
   }, [displayContent, size, type]);
 
-  // Set the target ref for Moveable once the component mounts.
-  useEffect(() => {
-    if (itemRef.current) {
-      setTarget(itemRef.current);
-    }
-  }, []);
-
-  // Update the displayed content if the item has Excel values.
+  // Ensure Excel-based items update their values
   useEffect(() => {
     if (values && values.length > 0) {
       setDisplayContent(values[currentPage] || "");
@@ -71,31 +71,66 @@ const NewDraggableResizableItem: React.FC<ItemProps> = ({
     }
   }, [currentPage, values, content]);
 
+  // Restrict items to stay inside the canvas
+  const enforceBounds = (
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) => {
+    return {
+      x: Math.min(Math.max(x, 0), canvasWidth - width),
+      y: Math.min(Math.max(y, 0), canvasHeight - height),
+      width: Math.min(width, canvasWidth - x),
+      height: Math.min(height, canvasHeight - y),
+    };
+  };
+
+  // Click handler to toggle selection
+  const handleSelect = () => {
+    setIsSelected(true);
+  };
+
+  // Deselect when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (itemRef.current && !itemRef.current.contains(event.target as Node)) {
+        setIsSelected(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div className="relative">
       <div
         ref={itemRef}
         data-item-id={id}
-        className="canvas-item absolute"
+        className={`canvas-item absolute ${isSelected ? "selected" : ""}`} // Apply CSS class dynamically
         style={{
-          width: `${size.width}px`,
-          height: `${size.height}px`,
-          transform: `translate(${position.x}px, ${position.y}px)`,
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `translate(${x}px, ${y}px)`,
         }}
+        onClick={handleSelect}
       >
-        <div className="item-value w-full h-full flex hover:border-2 border-red-500 border-dotted items-center justify-center p-2">
+        <div className="item-value  w-full h-full flex  items-center justify-center p-2">
           {type === "barcode" && (
             <canvas ref={barcodeRef} width={size.width} height={size.height} />
           )}
           {type === "qrcode" && (
-            <canvas
-              ref={qrRef}
-              width={Math.min(size.width, size.height)}
-              height={Math.min(size.width, size.height)}
-            />
+            <canvas ref={qrRef} width={size.width} height={size.width} />
           )}
           {type === "text" && (
-            <div className="text-lg text-black font-semibold">
+            <div
+              className="text-lg text-black font-semibold pointer-events-none"
+              style={{
+                fontSize: `${size.height * 0.65}px`,
+                maxWidth: "100%",
+                wordWrap: "break-word",
+              }}
+            >
               {displayContent}
             </div>
           )}
@@ -110,32 +145,56 @@ const NewDraggableResizableItem: React.FC<ItemProps> = ({
       </div>
 
       {/* Moveable Component */}
-      {target && (
-        <Moveable
-          target={target}
-          draggable={true}
-          resizable={true}
-          keepRatio={false}
-          throttleResize={1}
-          edge={true}
-          hideDefaultLines={true} // Hides blue selection box
-          origin={false} // Removes the red origin dot
-          renderDirections={["nw", "ne", "sw", "se"]} // Removes blue corner handles
-          onDrag={(e) => {
-            const newX = position.x + e.delta[0];
-            const newY = position.y + e.delta[1];
-            setPosition({ x: newX, y: newY });
-            e.target.style.transform = `translate(${newX}px, ${newY}px)`;
-          }}
-          onResize={(e) => {
-            const newWidth = e.width;
-            const newHeight = e.height;
-            setSize({ width: newWidth, height: newHeight });
-            e.target.style.width = `${newWidth}px`;
-            e.target.style.height = `${newHeight}px`;
-          }}
-        />
-      )}
+      <Moveable
+        target={isSelected ? itemRef.current : null}
+        draggable={true}
+        resizable={true}
+        keepRatio={false}
+        throttleResize={1}
+        edge={true}
+        hideDefaultLines={true}
+        origin={false}
+        renderDirections={["nw", "ne", "sw", "se"]}
+        onDrag={(e) => {
+          let newX = position.x + e.delta[0];
+          let newY = position.y + e.delta[1];
+
+          // Prevent dragging outside the canvas
+          const { x, y } = enforceBounds(newX, newY, size.width, size.height);
+          setPosition({ x, y });
+
+          e.target.style.transform = `translate(${x}px, ${y}px)`;
+        }}
+        onResize={(e) => {
+          let newWidth = e.width;
+          let newHeight = e.height;
+          let newX = position.x;
+          let newY = position.y;
+
+          // Adjust position if resizing from left or top
+          if (e.direction[0] === -1) {
+            newX += e.delta[0];
+          }
+          if (e.direction[1] === -1) {
+            newY += e.delta[1];
+          }
+
+          // Ensure resizing doesn't push the element outside the canvas
+          const { x, y, width, height } = enforceBounds(
+            newX,
+            newY,
+            newWidth,
+            newHeight
+          );
+
+          setSize({ width, height });
+          setPosition({ x, y });
+
+          e.target.style.width = `${width}px`;
+          e.target.style.height = `${height}px`;
+          e.target.style.transform = `translate(${x}px, ${y}px)`;
+        }}
+      />
     </div>
   );
 };

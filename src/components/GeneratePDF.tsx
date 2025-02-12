@@ -37,7 +37,7 @@ export const generatePDF = async ({
   try {
     onGenerateStart?.();
 
-    // Configure PDF for print-quality output
+    // Configure PDF with proper size
     const pdf = new jsPDF({
       orientation:
         canvasSize.width > canvasSize.height ? "landscape" : "portrait",
@@ -48,7 +48,7 @@ export const generatePDF = async ({
       ],
     });
 
-    // Get Excel-based items and determine page count
+    // Find Excel-based items to determine page count
     const excelItems = items.filter((item) => item.values?.length);
     const maxPages = excelItems.length
       ? Math.max(...excelItems.map((item) => item.values!.length))
@@ -57,13 +57,13 @@ export const generatePDF = async ({
     for (let page = 0; page < maxPages; page++) {
       if (page > 0) pdf.addPage();
 
-      // Clone and prepare canvas
+      // Clone the canvas element to capture without modifying the UI
       const clone = canvasRef.current.cloneNode(true) as HTMLDivElement;
       clone.style.position = "absolute";
       clone.style.left = "-9999px"; // Hide offscreen
       document.body.appendChild(clone);
 
-      // Update dynamic values
+      // Update dynamic values for this page
       const updatePromises = Array.from(
         clone.querySelectorAll(".canvas-item")
       ).map(async (element) => {
@@ -73,7 +73,7 @@ export const generatePDF = async ({
 
         if (!sourceItem?.values?.length) return;
 
-        // Get value for current page
+        // Get the correct value for the current page
         const value = sourceItem.values[page] || "";
         const valueElement = el.querySelector(".item-value");
         if (!valueElement) return;
@@ -82,22 +82,22 @@ export const generatePDF = async ({
         const textElement = valueElement.querySelector("div");
         if (textElement) textElement.textContent = value;
 
-        // Handle canvas elements
+        // Handle barcode & QR code updates
         const canvas = valueElement.querySelector("canvas");
         if (!canvas) return;
 
         try {
-          // Clear and redraw canvas
           const ctx = canvas.getContext("2d");
           ctx?.clearRect(0, 0, canvas.width, canvas.height);
 
           if (sourceItem.type === "barcode") {
-            await new Promise((resolve) => {
-              jsbarcode(canvas, value, {
-                width: sourceItem.width,
-                height: sourceItem.height,
-                format: "CODE128",
-              });
+            jsbarcode(canvas, value, {
+              format: "CODE128",
+              lineColor: "#000",
+              width: sourceItem.width / 200,
+              height: sourceItem.height * 0.8,
+              displayValue: true,
+              fontSize: sourceItem.height * 0.15,
             });
           } else if (sourceItem.type === "qrcode") {
             await QRCode.toCanvas(canvas, value, {
@@ -106,18 +106,18 @@ export const generatePDF = async ({
             });
           }
         } catch (error) {
-          console.error("Error rendering code:", error);
+          console.error("Error rendering barcode/QR:", error);
         }
       });
 
       await Promise.all(updatePromises);
 
-      // Add rendering delay for canvas operations
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Small delay to allow rendering
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Capture with high-resolution settings
+      // Capture high-resolution screenshot
       const canvas = await html2canvas(clone, {
-        scale: 4,
+        scale: 5,
         useCORS: true,
         logging: debug,
         backgroundColor: "#FFFFFF",
@@ -128,7 +128,7 @@ export const generatePDF = async ({
         },
       });
 
-      // Add to PDF with proper dimensions
+      // Add image to PDF
       pdf.addImage(
         canvas.toDataURL("image/png", 1.0),
         "PNG",
@@ -138,7 +138,6 @@ export const generatePDF = async ({
         (canvasSize.height / 96) * 25.4
       );
 
-      // Cleanup
       document.body.removeChild(clone);
     }
 
