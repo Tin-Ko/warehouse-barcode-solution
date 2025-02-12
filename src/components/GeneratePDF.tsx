@@ -1,9 +1,9 @@
-// generatePDF.tsx
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import React from "react";
+import jsbarcode from "jsbarcode";
+import QRCode from "qrcode";
 
-// Define your canvas item type.
 export interface CanvasItem {
   id: string;
   type: "barcode" | "qrcode" | "text" | "image";
@@ -12,10 +12,9 @@ export interface CanvasItem {
   y: number;
   width: number;
   height: number;
-  values?: string[]; // For Excel-based items (if applicable)
+  values?: string[];
 }
 
-// Define the parameters for PDF generation.
 interface GeneratePDFParams {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   items: CanvasItem[];
@@ -38,115 +37,115 @@ export const generatePDF = async ({
   try {
     onGenerateStart?.();
 
-    // Determine the maximum number of pages from Excel-based items.
-    const excelItems = items.filter(
-      (item) => item.values && item.values.length > 0
-    );
-    const maxPages =
-      excelItems.length > 0
-        ? Math.max(...excelItems.map((item) => item.values!.length))
-        : 1;
-
-    // Create a new jsPDF instance using the canvas dimensions.
+    // Configure PDF for print-quality output
     const pdf = new jsPDF({
       orientation:
         canvasSize.width > canvasSize.height ? "landscape" : "portrait",
-      unit: "px",
-      format: [canvasSize.width, canvasSize.height],
+      unit: "mm",
+      format: [
+        (canvasSize.width / 96) * 25.4, // Convert pixels to mm
+        (canvasSize.height / 96) * 25.4,
+      ],
     });
 
-    // Process each page.
-    for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
-      if (pageIndex > 0) {
-        pdf.addPage([canvasSize.width, canvasSize.height]);
-      }
+    // Get Excel-based items and determine page count
+    const excelItems = items.filter((item) => item.values?.length);
+    const maxPages = excelItems.length
+      ? Math.max(...excelItems.map((item) => item.values!.length))
+      : 1;
 
-      // Clone the canvas element.
-      const tempCanvas = canvasRef.current.cloneNode(true) as HTMLDivElement;
+    for (let page = 0; page < maxPages; page++) {
+      if (page > 0) pdf.addPage();
 
-      // Apply debug styling so we can visually inspect the clone.
-      if (debug) {
-        tempCanvas.style.position = "fixed";
-        tempCanvas.style.top = "10px";
-        tempCanvas.style.left = "10px";
-        tempCanvas.style.border = "2px dashed red";
-        tempCanvas.style.backgroundColor = "rgba(255,255,255,0.9)";
-        tempCanvas.style.zIndex = "10000";
-      } else {
-        tempCanvas.style.position = "absolute";
-        tempCanvas.style.top = "0";
-        tempCanvas.style.left = "0";
-        tempCanvas.style.zIndex = "-1000";
-      }
+      // Clone and prepare canvas
+      const clone = canvasRef.current.cloneNode(true) as HTMLDivElement;
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px"; // Hide offscreen
+      document.body.appendChild(clone);
 
-      // Append the cloned canvas to the document so we can inspect it.
-      document.body.appendChild(tempCanvas);
-
-      if (debug) {
-        console.log("Debug: Cloned canvas appended to DOM.");
-        console.log(
-          "Cloned canvas dimensions:",
-          tempCanvas.getBoundingClientRect()
-        );
-        console.log(
-          "Cloned canvas computed styles:",
-          window.getComputedStyle(tempCanvas)
-        );
-      }
-
-      // Update Excel-based items in the cloned canvas.
-      const itemElements = tempCanvas.getElementsByClassName("canvas-item");
-      Array.from(itemElements).forEach((element) => {
+      // Update dynamic values
+      const updatePromises = Array.from(
+        clone.querySelectorAll(".canvas-item")
+      ).map(async (element) => {
         const el = element as HTMLElement;
-        const itemId = el.getAttribute("data-item-id");
-        const excelItem = excelItems.find((item) => item.id === itemId);
-        if (excelItem && excelItem.values) {
-          const valueElement = el.querySelector(".item-value");
-          if (valueElement) {
-            valueElement.textContent = excelItem.values[pageIndex];
-            if (debug) {
-              console.log(
-                `Debug: Updated item ${itemId} with value:`,
-                excelItem.values[pageIndex]
-              );
-            }
+        const itemId = el.dataset.itemId;
+        const sourceItem = items.find((item) => item.id === itemId);
+
+        if (!sourceItem?.values?.length) return;
+
+        // Get value for current page
+        const value = sourceItem.values[page] || "";
+        const valueElement = el.querySelector(".item-value");
+        if (!valueElement) return;
+
+        // Update text content
+        const textElement = valueElement.querySelector("div");
+        if (textElement) textElement.textContent = value;
+
+        // Handle canvas elements
+        const canvas = valueElement.querySelector("canvas");
+        if (!canvas) return;
+
+        try {
+          // Clear and redraw canvas
+          const ctx = canvas.getContext("2d");
+          ctx?.clearRect(0, 0, canvas.width, canvas.height);
+
+          if (sourceItem.type === "barcode") {
+            await new Promise((resolve) => {
+              jsbarcode(canvas, value, {
+                width: sourceItem.width,
+                height: sourceItem.height,
+                format: "CODE128",
+              });
+            });
+          } else if (sourceItem.type === "qrcode") {
+            await QRCode.toCanvas(canvas, value, {
+              width: Math.min(sourceItem.width, sourceItem.height),
+              margin: 0,
+            });
           }
+        } catch (error) {
+          console.error("Error rendering code:", error);
         }
       });
 
-      // Force reflow to ensure style updates.
-      tempCanvas.offsetHeight;
+      await Promise.all(updatePromises);
 
-      // Wait briefly to allow DOM updates to render.
-      await new Promise((resolve) => setTimeout(resolve, debug ? 3000 : 100));
+      // Add rendering delay for canvas operations
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Capture the cloned canvas with html2canvas.
-      const capturedCanvas = await html2canvas(tempCanvas, {
-        scale: 3, // Increase scale for higher resolution.
+      // Capture with high-resolution settings
+      const canvas = await html2canvas(clone, {
+        scale: 4,
         useCORS: true,
-        backgroundColor: null,
         logging: debug,
+        backgroundColor: "#FFFFFF",
+        onclone: (clonedDoc) => {
+          clonedDoc.querySelectorAll("canvas").forEach((c) => {
+            c.style.imageRendering = "crisp-edges";
+          });
+        },
       });
-      const imgData = capturedCanvas.toDataURL("image/png");
 
-      // Add the captured image as a page in the PDF.
-      pdf.addImage(imgData, "PNG", 0, 0, canvasSize.width, canvasSize.height);
+      // Add to PDF with proper dimensions
+      pdf.addImage(
+        canvas.toDataURL("image/png", 1.0),
+        "PNG",
+        0,
+        0,
+        (canvasSize.width / 96) * 25.4,
+        (canvasSize.height / 96) * 25.4
+      );
 
-      // Optionally, wait a bit longer in debug mode before cleanup.
-      if (debug) {
-        console.log("Debug: Waiting before removing cloned canvas...");
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-      }
-
-      // Remove the temporary cloned canvas.
-      document.body.removeChild(tempCanvas);
+      // Cleanup
+      document.body.removeChild(clone);
     }
 
-    // Save the generated PDF.
     pdf.save("labels.pdf");
     onGenerateEnd?.();
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    console.error("PDF Generation Error:", error);
     onGenerateEnd?.();
   }
 };

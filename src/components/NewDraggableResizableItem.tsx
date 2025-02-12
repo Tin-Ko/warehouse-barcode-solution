@@ -3,6 +3,8 @@ import Barcode from "./Barcode";
 import QRCodeComponent from "./QRCode";
 import Moveable from "react-moveable";
 import "./moveableOverrides.css";
+import jsbarcode from "jsbarcode";
+import QRCode from "qrcode";
 
 interface ItemProps {
   id: string;
@@ -30,10 +32,28 @@ const NewDraggableResizableItem: React.FC<ItemProps> = ({
   currentPage = 0,
 }) => {
   const itemRef = useRef<HTMLDivElement | null>(null);
+  const barcodeRef = useRef<HTMLCanvasElement | null>(null);
+  const qrRef = useRef<HTMLCanvasElement | null>(null);
   const [position, setPosition] = useState({ x, y });
   const [size, setSize] = useState({ width, height });
   const [target, setTarget] = useState<HTMLDivElement | null>(null);
   const [displayContent, setDisplayContent] = useState(content);
+
+  // Render barcode/qrcode when content or size changes
+  useEffect(() => {
+    if (type === "barcode" && barcodeRef.current) {
+      jsbarcode(barcodeRef.current, displayContent, {
+        width: size.width,
+        height: size.height,
+        format: "CODE128",
+      });
+    }
+    if (type === "qrcode" && qrRef.current) {
+      QRCode.toCanvas(qrRef.current, displayContent, {
+        width: Math.min(size.width, size.height),
+      });
+    }
+  }, [displayContent, size, type]);
 
   // Set the target ref for Moveable once the component mounts.
   useEffect(() => {
@@ -53,10 +73,9 @@ const NewDraggableResizableItem: React.FC<ItemProps> = ({
 
   return (
     <div className="relative">
-      {/* Draggable & Resizable Item */}
       <div
         ref={itemRef}
-        data-item-id={id} // This is needed for PDF generation
+        data-item-id={id}
         className="canvas-item absolute"
         style={{
           width: `${size.width}px`,
@@ -64,19 +83,15 @@ const NewDraggableResizableItem: React.FC<ItemProps> = ({
           transform: `translate(${position.x}px, ${position.y}px)`,
         }}
       >
-        {/* Wrap the content in an element with class "item-value" */}
         <div className="item-value w-full h-full flex hover:border-2 border-red-500 border-dotted items-center justify-center p-2">
           {type === "barcode" && (
-            <Barcode
-              value={displayContent}
-              width={size.width}
-              height={size.height}
-            />
+            <canvas ref={barcodeRef} width={size.width} height={size.height} />
           )}
           {type === "qrcode" && (
-            <QRCodeComponent
-              value={displayContent}
-              size={Math.min(size.width, size.height)}
+            <canvas
+              ref={qrRef}
+              width={Math.min(size.width, size.height)}
+              height={Math.min(size.width, size.height)}
             />
           )}
           {type === "text" && (
