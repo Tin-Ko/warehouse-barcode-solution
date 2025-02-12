@@ -124,6 +124,7 @@ export default function Home() {
         canvasRef: canvasPreviewRef,
         items: canvasItems,
         canvasSize,
+        debug: true,
       });
     }
   };
@@ -133,64 +134,69 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-6 text-center">
         📦 Barcode Generator
       </h1>
+      <div className="flex flex-row gap-6 justify-center">
+        <div className="">
+          {/* Object List for custom objects */}
+          <ObjectList objects={objects} setObjects={setObjects} />
 
-      {/* Object List for custom objects */}
-      <ObjectList objects={objects} setObjects={setObjects} />
+          {/* Excel File Uploader */}
+          <FileUploader
+            onDataProcessed={(data) => {
+              console.log("Processed Excel Data:", data);
+              // Map each processed column to a CanvasObject
+              const excelObjects: CanvasObject[] = data.map((col) => ({
+                id: `excel-${col.columnName}`,
+                value: col.columnName, // You could use the header or any identifier here
+                custom: false, // This marks it as an Excel-based object
+                options: {
+                  // For example, default these options to true or false
+                  // Or use col.type to decide which one to default as checked:
+                  qr: col.type === "qrcode",
+                  barcode: col.type === "barcode",
+                  text: col.type === "text",
+                },
+                values: col.values, // Excel values are kept for further processing/printing
+              }));
 
-      {/* Excel File Uploader */}
-      <FileUploader
-        onDataProcessed={(data) => {
-          console.log("Processed Excel Data:", data);
-          // Map each processed column to a CanvasObject
-          const excelObjects: CanvasObject[] = data.map((col) => ({
-            id: `excel-${col.columnName}`,
-            value: col.columnName, // You could use the header or any identifier here
-            custom: false, // This marks it as an Excel-based object
-            options: {
-              // For example, default these options to true or false
-              // Or use col.type to decide which one to default as checked:
-              qr: col.type === "qrcode",
-              barcode: col.type === "barcode",
-              text: col.type === "text",
-            },
-            values: col.values, // Excel values are kept for further processing/printing
-          }));
+              // Update the object list by merging in the Excel objects
+              setObjects((prev) => [...prev, ...excelObjects]);
+            }}
+          />
 
-          // Update the object list by merging in the Excel objects
-          setObjects((prev) => [...prev, ...excelObjects]);
-        }}
-      />
+          {/* Image Uploader */}
+          <ImageUploader onImagesUploaded={(imgs) => setImages(imgs)} />
+        </div>
 
-      {/* Image Uploader */}
-      <ImageUploader onImagesUploaded={(imgs) => setImages(imgs)} />
+        {/* Canvas Container with separate preview ref (excludes the size selector) */}
+        <div>
+          <div>
+            <ResizableCanvas
+              items={canvasItems}
+              removeItem={removeItem}
+              previewRef={canvasPreviewRef}
+            />
+          </div>
 
-      {/* Canvas Container with separate preview ref (excludes the size selector) */}
-      <div className="mt-6">
-        <ResizableCanvas
-          items={canvasItems}
-          removeItem={removeItem}
-          previewRef={canvasPreviewRef}
-        />
-      </div>
-
-      {/* Label Count and Preview/Print Buttons */}
-      <div className="mt-4 text-center">
-        <p className="mb-2">Labels to print: {labelCount}</p>
-        <button
-          onClick={async () => {
-            await generatePreview();
-            setShowPreview(true);
-          }}
-          className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition mr-2"
-        >
-          Preview Labels
-        </button>
-        <button
-          onClick={handlePrint}
-          className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition"
-        >
-          Print Labels
-        </button>
+          {/* Label Count and Preview/Print Buttons */}
+          <div className="mt-4 text-center">
+            <p className="mb-2">Labels to print: {labelCount}</p>
+            <button
+              onClick={async () => {
+                await generatePreview();
+                setShowPreview(true);
+              }}
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition mr-2"
+            >
+              Preview Labels
+            </button>
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-secondary transition"
+            >
+              Print Labels
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Preview Modal */}

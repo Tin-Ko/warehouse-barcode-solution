@@ -77,16 +77,16 @@ export default function ResizableCanvas({
   return (
     <div className="flex flex-col gap-4">
       {/* Label Size Selector */}
-      <div className="flex items-center gap-4 bg-gray-100 p-4 rounded-lg">
+      <div className="flex items-center gap-4 bg-gray-800 p-4 rounded-lg">
         <div className="flex items-center gap-2">
-          <label htmlFor="labelSize" className="text-gray-700 font-medium">
+          <label htmlFor="labelSize" className="text-gray-100 font-medium">
             Label Size:
           </label>
           <select
             id="labelSize"
             value={selectedSize}
             onChange={handleSizeChange}
-            className="border rounded px-2 py-1 text-gray-700"
+            className="border rounded px-2 py-1 bg-gray-600 text-gray-100"
           >
             {STANDARD_SIZES.map((size) => (
               <option key={size.name} value={size.name}>
@@ -102,22 +102,22 @@ export default function ResizableCanvas({
               type="number"
               value={customWidth}
               onChange={(e) => setCustomWidth(e.target.value)}
-              className="border rounded w-20 px-2 py-1 text-gray-700"
+              className="border rounded w-20 px-2 py-1 bg-gray-600 text-gray-100"
               min="0.5"
               step="0.5"
               placeholder="Width"
             />
-            <span className="text-gray-700">×</span>
+            <span className="text-gray-100">×</span>
             <input
               type="number"
               value={customHeight}
               onChange={(e) => setCustomHeight(e.target.value)}
-              className="border rounded w-20 px-2 py-1 text-gray-700"
+              className="border rounded w-20 px-2 py-1 bg-gray-600 text-gray-100"
               min="0.5"
               step="0.5"
               placeholder="Height"
             />
-            <span className="text-gray-700">inches</span>
+            <span className="text-gray-100">inches</span>
             <button
               onClick={handleCustomSizeChange}
               className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
@@ -127,7 +127,7 @@ export default function ResizableCanvas({
           </div>
         )}
 
-        <div className="text-gray-500 text-sm">
+        <div className="text-gray-100 text-sm">
           Current size: {pixelsToInches(canvasSize.width)} ×{" "}
           {pixelsToInches(canvasSize.height)} in
         </div>
@@ -136,7 +136,7 @@ export default function ResizableCanvas({
       {/* Canvas */}
       <div
         ref={previewRef}
-        className="relative bg-white border border-gray-300 rounded-lg mx-auto"
+        className="relative bg-red-100 border border-gray-300 rounded-lg mx-auto"
         style={{
           width: canvasSize.width,
           height: canvasSize.height,
